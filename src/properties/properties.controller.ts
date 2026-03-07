@@ -6,10 +6,12 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { PropertiesService } from './properties.service';
 import { CreatePropertyDto } from './dto/create.dto';
 import { UpdatePropertyDto } from './dto/update.dto';
+import { FilterPropertiesDto } from './dto/filter.dto';
 
 @Controller('properties')
 export class PropertiesController {
@@ -19,8 +21,8 @@ export class PropertiesController {
     return this.propertiesService.create(body);
   }
   @Get()
-  findAll() {
-    return this.propertiesService.findAll();
+  findAll(@Query() query: FilterPropertiesDto) {
+    return this.propertiesService.findAll(query);
   }
   @Get(':propertyId')
   getDetail(@Param('propertyId') propertyId: string) {

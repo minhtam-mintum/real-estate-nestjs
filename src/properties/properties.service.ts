@@ -5,6 +5,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { EnumTrueFalse } from 'src/common/enums/common.enum';
 import { UpdatePropertyDto } from './dto/update.dto';
 import { CreatePropertyDto } from './dto/create.dto';
+import { FilterPropertiesDto } from './dto/filter.dto';
+import { pagination } from 'src/utils/pagination.util';
 
 @Injectable()
 export class PropertiesService {
@@ -16,19 +18,19 @@ export class PropertiesService {
     const property = new this.propertyModel(data);
     return property.save();
   }
-  async findAll(): Promise<Property[]> {
-    return this.propertyModel
-      .find({
-        $or: [
-          { isDeleted: EnumTrueFalse.NO },
-          { isDeleted: { $exists: false } },
-        ],
-      })
-      .exec();
+  async findAll(
+    query?: FilterPropertiesDto,
+  ): Promise<{ list: Property[]; total: number }> {
+    const filter = {
+      $or: [{ isDeleted: EnumTrueFalse.NO }, { isDeleted: { $exists: false } }],
+    };
+    let list = this.propertyModel.find(filter);
+    list = pagination(list, query?.page, query?.take);
+    const total = await this.propertyModel.countDocuments(filter);
+    return { list: await list.exec(), total };
   }
   async findOne(id: string): Promise<Property | null> {
     const property = await this.propertyModel.findById(id);
-    console.log(id);
     if (!property) {
       throw new NotFoundException('Property not found');
     }
