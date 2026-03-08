@@ -6,7 +6,7 @@ import { EnumTrueFalse } from 'src/common/enums/common.enum';
 import { UpdatePropertyDto } from './dto/update.dto';
 import { CreatePropertyDto } from './dto/create.dto';
 import { FilterPropertiesDto } from './dto/filter.dto';
-import { pagination } from 'src/utils/pagination.util';
+import { pagination } from 'src/common/utils/pagination.util';
 
 @Injectable()
 export class PropertiesService {
@@ -21,8 +21,12 @@ export class PropertiesService {
   async findAll(
     query?: FilterPropertiesDto,
   ): Promise<{ list: Property[]; total: number }> {
+    const searchField: Array<keyof Property> = ['title', 'address'];
     const filter = {
-      $or: [{ isDeleted: EnumTrueFalse.NO }, { isDeleted: { $exists: false } }],
+      isDeleted: { $ne: EnumTrueFalse.YES },
+      $or: searchField.map((key) => ({
+        [key]: { $regex: query?.search, $options: 'i' },
+      })),
     };
     let list = this.propertyModel.find(filter);
     list = pagination(list, query?.page, query?.take);
