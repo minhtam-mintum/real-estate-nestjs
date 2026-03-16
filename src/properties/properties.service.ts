@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Property, PropertyDocument } from './schemas/property.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
@@ -7,6 +7,9 @@ import { UpdatePropertyDto } from './dto/update.dto';
 import { CreatePropertyDto } from './dto/create.dto';
 import { FilterPropertiesDto } from './dto/filter.dto';
 import { pagination } from 'src/common/utils/pagination.util';
+import { ResponseType } from 'src/types';
+import { Helper } from 'src/common/helpers';
+import { ResponseCode } from 'src/common/enums/responseCode';
 
 @Injectable()
 export class PropertiesService {
@@ -14,34 +17,43 @@ export class PropertiesService {
     @InjectModel(Property.name)
     private propertyModel: Model<PropertyDocument>,
   ) {}
-  async create(data: CreatePropertyDto): Promise<Property> {
+  async create(data: CreatePropertyDto): Promise<ResponseType<Property>> {
     const property = new this.propertyModel(data);
-    return property.save();
+    await property.save();
+    return Helper.response(property);
   }
   async findAll(
     query?: FilterPropertiesDto,
-  ): Promise<{ list: Property[]; total: number }> {
+  ): Promise<ResponseType<{ list: Property[]; total: number }>> {
     const searchField: Array<keyof Property> = ['title', 'address'];
     const filter = {
       isDeleted: { $ne: EnumTrueFalse.YES },
-      $or: searchField.map((key) => ({
-        [key]: { $regex: query?.search, $options: 'i' },
-      })),
     };
+    if (query?.search) {
+      filter['$or'] = searchField.map((key) => ({
+        [key]: { $regex: query.search, $options: 'i' },
+      }));
+    }
     let list = this.propertyModel.find(filter);
     list = pagination(list, query?.page, query?.take);
     const total = await this.propertyModel.countDocuments(filter);
-    return { list: await list.exec(), total };
+    return Helper.response({ list: await list.exec(), total });
   }
-  async findOne(id: string): Promise<Property | null> {
+  async findOne(id: string): Promise<ResponseType<Property | null>> {
     const property = await this.propertyModel.findById(id);
     if (!property) {
-      throw new NotFoundException('Property not found');
+      return Helper.response(
+        null,
+        ResponseCode.NOT_FOUND,
+        'Property not found',
+      );
     }
 
-    return property;
+    return Helper.response(property);
   }
-  async update(data: UpdatePropertyDto): Promise<{ propertyId: string }> {
+  async update(
+    data: UpdatePropertyDto,
+  ): Promise<ResponseType<{ propertyId: string } | null>> {
     const { propertyId, ...rest } = data;
     const property = await this.propertyModel
       .findByIdAndUpdate(propertyId, rest, {
@@ -49,11 +61,15 @@ export class PropertiesService {
       })
       .exec();
     if (!property) {
-      throw new NotFoundException('Property not found');
+      return Helper.response(
+        null,
+        ResponseCode.NOT_FOUND,
+        'Property not found',
+      );
     }
-    return { propertyId };
+    return Helper.response({ propertyId });
   }
-  async delete(id: string): Promise<{ propertyId: string }> {
+  async delete(id: string): Promise<ResponseType<null>> {
     const property = await this.propertyModel
       .findByIdAndUpdate(
         id,
@@ -64,8 +80,12 @@ export class PropertiesService {
       )
       .exec();
     if (!property) {
-      throw new NotFoundException('Property not found');
+      return Helper.response(
+        null,
+        ResponseCode.NOT_FOUND,
+        'Property not found',
+      );
     }
-    return { propertyId: id };
+    return Helper.response(null);
   }
 }

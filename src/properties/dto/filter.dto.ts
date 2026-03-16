@@ -14,7 +14,6 @@ export class FilterPropertiesDto {
   @IsString()
   search?: string;
   @IsOptional()
-  @IsString()
   sort?: string;
   @IsOptional()
   @Type(() => Number)
